@@ -15,6 +15,7 @@ openssl req -x509 -nodes -newkey rsa:2048 -sha256 \
   -days 365 \
   -subj "/C=IT/ST=Italy/L=City/O=MyOrg/OU=IT/CN=ftp.local"
 
+chown root:root certs/pure-ftpd.pem
 chmod 600 certs/pure-ftpd.pem
 
 echo "📁 Creazione directory passwd..."
