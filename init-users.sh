@@ -18,8 +18,12 @@ add_user() {
   fi
 }
 
-add_user bob 12345
-add_user alice alicepwd
+# 🔁 Legge utenti dalla variabile FTP_USERS (es: "bob:12345,alice:alicepwd")
+IFS=',' read -ra users <<< "$FTP_USERS"
+for entry in "${users[@]}"; do
+  IFS=':' read -r user pass <<< "$entry"
+  [ -n "$user" ] && [ -n "$pass" ] && add_user "$user" "$pass"
+done
 
-# Avvio del servizio FTP
+# 🚀 Avvio del servizio FTP
 exec /run.sh -l puredb:/etc/pure-ftpd/pureftpd.pdb -E -j -R -P 127.0.0.1 -p 30000:30009 --tls=2 -c 5 -C 3
