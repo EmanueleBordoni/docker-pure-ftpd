@@ -1,27 +1,22 @@
-version: '3'
-
-# Usage example: https://github.com/stilliard/docker-pure-ftpd/wiki/Docker-stack-with-Wordpress-&-FTP
+version: '3.8'
 
 services:
-  ftpd_server:
-    image: stilliard/pure-ftpd
+  ftps:
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: pure-ftpd
     ports:
       - "21:21"
       - "30000-30009:30000-30009"
-    volumes: # remember to replace /folder_on_disk/ with the path to where you want to store the files on the host machine
-      - "/folder_on_disk/data:/home/username/"
-      - "/folder_on_disk/passwd:/etc/pure-ftpd/passwd"
-# uncomment for ssl/tls, see https://github.com/stilliard/docker-pure-ftpd#tls
-#      - "/folder_on_disk/ssl:/etc/ssl/private/"
-# or ssl/tls with Let's Encrypt (cert and key as two files)
-#      - "/etc/letsencrypt/live/<your_server>/cert.pem:/etc/ssl/private/pure-ftpd-cert.pem"
-#      - "/etc/letsencrypt/live/<your_server>/privkey.pem:/etc/ssl/private/pure-ftpd-key.pem"
     environment:
-      PUBLICHOST: "localhost"
-      FTP_USER_NAME: username
-      FTP_USER_PASS: mypass
-      FTP_USER_HOME: /home/username
-# also for ssl/tls:
-#      ADDED_FLAGS: "--tls=2"
-    restart: always
+      PUBLICHOST: "127.0.0.1"
+      FTP_PASSIVE_PORTS: "30000:30009"
+      #ADDED_FLAGS: "-l puredb:/etc/pure-ftpd/pureftpd.pdb -E -j -R -P 127.0.0.1 -p 30000:30009 --tls=2 -c 5 -C 3"
+    volumes:
+      - ./data:/home/ftpusers
+      #- ./passwd:/etc/pure-ftpd/passwd
+      - ./certs/pure-ftpd.pem:/etc/ssl/private/pure-ftpd.pem:ro
+      - ./init-users.sh:/init-users.sh
+    command: /bin/bash /init-users.sh
+    restart: unless-stopped

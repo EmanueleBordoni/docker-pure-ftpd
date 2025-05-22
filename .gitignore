@@ -1,0 +1,4 @@
+/certs/*
+/data/alice/*
+/data/bob/*
+/passwd/*

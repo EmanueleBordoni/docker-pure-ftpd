@@ -1,95 +1,70 @@
-#Stage 1 : builder debian image
-FROM debian:buster as builder
+# 🔨 Stage 1: builder con Debian Bookworm
+FROM debian:bookworm AS builder
 
-# properly setup debian sources
-ENV DEBIAN_FRONTEND noninteractive
-RUN echo "deb http://http.debian.net/debian buster main\n\
-deb-src http://http.debian.net/debian buster main\n\
-deb http://http.debian.net/debian buster-updates main\n\
-deb-src http://http.debian.net/debian buster-updates main\n\
-deb http://security.debian.org buster/updates main\n\
-deb-src http://security.debian.org buster/updates main\n\
-" > /etc/apt/sources.list
+ENV DEBIAN_FRONTEND=noninteractive
 
-# install package building helpers
-# rsyslog for logging (ref https://github.com/stilliard/docker-pure-ftpd/issues/17)
-RUN apt-get -y update && \
-	apt-get -y --force-yes --fix-missing install dpkg-dev debhelper &&\
-	apt-get -y build-dep pure-ftpd
-	
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libpam0g-dev \
+    libcap-dev \
+    wget \
+    ca-certificates \
+    rsyslog
 
-# Build from source - we need to remove the need for CAP_SYS_NICE and CAP_DAC_READ_SEARCH
-RUN mkdir /tmp/pure-ftpd/ && \
-	cd /tmp/pure-ftpd/ && \
-	apt-get source pure-ftpd && \
-	cd pure-ftpd-* && \
-	./configure --with-tls | grep -v '^checking' | grep -v ': Entering directory' | grep -v ': Leaving directory' && \
-	sed -i '/CAP_SYS_NICE,/d; /CAP_DAC_READ_SEARCH/d; s/CAP_SYS_CHROOT,/CAP_SYS_CHROOT/;' src/caps_p.h && \
-	dpkg-buildpackage -b -uc | grep -v '^checking' | grep -v ': Entering directory' | grep -v ': Leaving directory'
+# 📦 Scarica pure-ftpd all'ultima versione
+ARG PUREFTPD_VERSION=1.0.51
 
+RUN mkdir -p /build && \
+    cd /build && \
+    wget https://download.pureftpd.org/pub/pure-ftpd/releases/pure-ftpd-${PUREFTPD_VERSION}.tar.gz && \
+    tar xzf pure-ftpd-${PUREFTPD_VERSION}.tar.gz && \
+    cd pure-ftpd-${PUREFTPD_VERSION} && \
+    ./configure --with-tls --with-puredb && \
+    # 🔧 Rimuove capabilities che causano problemi in ambienti limitati
+    sed -i '/CAP_SYS_NICE/d; /CAP_DAC_READ_SEARCH/d; s/CAP_SYS_CHROOT,/CAP_SYS_CHROOT/' src/caps_p.h && \
+    make && make install
 
-#Stage 2 : actual pure-ftpd image
-FROM debian:buster-slim
+# 🚀 Stage 2: immagine finale
+FROM debian:bookworm-slim
 
-# feel free to change this ;)
-LABEL maintainer "Andrew Stilliard <andrew.stilliard@gmail.com>"
+LABEL maintainer="tuo_nome@esempio.com"
+ENV DEBIAN_FRONTEND=noninteractive
 
-# install dependencies
-# FIXME : libcap2 is not a dependency anymore. .deb could be fixed to avoid asking this dependency
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get -y update && \
-	apt-get  --no-install-recommends --yes install \
-	libc6 \
-	libcap2 \
-    libmariadb3 \
-	libpam0g \
-	libssl1.1 \
-    lsb-base \
-    openbsd-inetd \
-    openssl \
+# Dipendenze runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    libpam0g \
+    libcap2 \
+    rsyslog \
     perl \
-	rsyslog
+    openssl \
+    openbsd-inetd \
+    lsb-base && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /tmp/pure-ftpd/*.deb /tmp/pure-ftpd/
+# 👤 Crea utente e gruppo
+RUN groupadd ftpgroup && useradd -g ftpgroup -d /home/ftpusers -s /usr/sbin/nologin ftpuser
 
-# install the new deb files
-RUN dpkg -i /tmp/pure-ftpd/pure-ftpd-common*.deb &&\
-	dpkg -i /tmp/pure-ftpd/pure-ftpd_*.deb && \
-	# dpkg -i /tmp/pure-ftpd/pure-ftpd-ldap_*.deb && \
-	# dpkg -i /tmp/pure-ftpd/pure-ftpd-mysql_*.deb && \
-	# dpkg -i /tmp/pure-ftpd/pure-ftpd-postgresql_*.deb && \
-	rm -Rf /tmp/pure-ftpd 
+# 🔁 Logging config
+RUN echo "ftp.* /var/log/pure-ftpd/pureftpd.log" >> /etc/rsyslog.conf && \
+    mkdir -p /var/log/pure-ftpd
 
-# prevent pure-ftpd upgrading
-RUN apt-mark hold pure-ftpd pure-ftpd-common
+# 📥 Copia i binari custom
+COPY --from=builder /usr/local/sbin/pure-ftpd /usr/sbin/pure-ftpd
+COPY --from=builder /usr/local/bin/pure-pw /usr/bin/pure-pw
+COPY --from=builder /usr/local/bin/pure-pwconvert /usr/bin/pure-pwconvert
 
-# setup ftpgroup and ftpuser
-RUN groupadd ftpgroup &&\
-	useradd -g ftpgroup -d /home/ftpusers -s /dev/null ftpuser
-
-# configure rsyslog logging
-RUN echo "" >> /etc/rsyslog.conf && \
-	echo "#PureFTP Custom Logging" >> /etc/rsyslog.conf && \
-	echo "ftp.* /var/log/pure-ftpd/pureftpd.log" >> /etc/rsyslog.conf && \
-	echo "Updated /etc/rsyslog.conf with /var/log/pure-ftpd/pureftpd.log"
-
-# setup run/init file
+# 📜 Script di avvio
 COPY run.sh /run.sh
-RUN chmod u+x /run.sh
+RUN chmod +x /run.sh
 
-# cleaning up
-RUN apt-get -y clean \
-	&& apt-get -y autoclean \
-	&& apt-get -y autoremove \
-	&& rm -rf /var/lib/apt/lists/*
-
-# default publichost, you'll need to set this for passive support
-ENV PUBLICHOST localhost
-
-# couple available volumes you may want to use
+# Volumi
 VOLUME ["/home/ftpusers", "/etc/pure-ftpd/passwd"]
 
-# startup
-CMD /run.sh -l puredb:/etc/pure-ftpd/pureftpd.pdb -E -j -R -P $PUBLICHOST
-
 EXPOSE 21 30000-30009
+
+# 🌍 Variabile per passive mode
+ENV PUBLICHOST=localhost
+
+CMD ["/run.sh", "-l", "puredb:/etc/pure-ftpd/pureftpd.pdb", "-E", "-j", "-R", "-P", "localhost"]
