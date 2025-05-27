@@ -20,7 +20,7 @@ RUN mkdir -p /build && \
     wget https://download.pureftpd.org/pub/pure-ftpd/releases/pure-ftpd-${PUREFTPD_VERSION}.tar.gz && \
     tar xzf pure-ftpd-${PUREFTPD_VERSION}.tar.gz && \
     cd pure-ftpd-${PUREFTPD_VERSION} && \
-    ./configure --with-tls --with-puredb && \
+    ./configure --with-tls --with-puredb --with-uploadscript && \
     # 🔧 Rimuove capabilities che causano problemi in ambienti limitati
     sed -i '/CAP_SYS_NICE/d; /CAP_DAC_READ_SEARCH/d; s/CAP_SYS_CHROOT,/CAP_SYS_CHROOT/' src/caps_p.h && \
     make && make install
@@ -54,10 +54,16 @@ RUN echo "ftp.* /var/log/pure-ftpd/pureftpd.log" >> /etc/rsyslog.conf && \
 COPY --from=builder /usr/local/sbin/pure-ftpd /usr/sbin/pure-ftpd
 COPY --from=builder /usr/local/bin/pure-pw /usr/bin/pure-pw
 COPY --from=builder /usr/local/bin/pure-pwconvert /usr/bin/pure-pwconvert
+COPY --from=builder /usr/local/sbin/pure-uploadscript /usr/sbin/pure-uploadscript
+
 
 # 📜 Script di avvio
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
+
+# 📜 Script di copy
+COPY upload-handler.sh /etc/pure-ftpd/upload-handler.sh
+RUN chmod +x /etc/pure-ftpd/upload-handler.sh
 
 # Volumi
 VOLUME ["/home/ftpusers", "/etc/pure-ftpd/passwd"]

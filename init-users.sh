@@ -26,4 +26,4 @@ for entry in "${users[@]}"; do
 done
 
 # 🚀 Avvio del servizio FTP
-exec /run.sh -l puredb:/etc/pure-ftpd/pureftpd.pdb -E -j -R -P 127.0.0.1 -p 30000:30009 --tls=2 -c 5 -C 3
+exec /run.sh -l puredb:/etc/pure-ftpd/pureftpd.pdb -E -j -R -P 127.0.0.1 -p 30000:30009 --tls=2 -c 5 -C 3 --uploadscript

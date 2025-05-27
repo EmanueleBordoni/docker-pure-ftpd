@@ -147,5 +147,9 @@ fi
 echo "Starting Pure-FTPd:"
 echo "  pure-ftpd $PURE_FTPD_FLAGS"
 
+# Start upload handler in background
+pure-uploadscript -B -r /etc/pure-ftpd/upload-handler.sh &
+echo "Upload script avviato."
+
 # start pureftpd with requested flags
 exec /usr/sbin/pure-ftpd $PURE_FTPD_FLAGS

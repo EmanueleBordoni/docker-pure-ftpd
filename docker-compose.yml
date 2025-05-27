@@ -16,7 +16,7 @@ services:
       FTP_PASSIVE_PORTS: "30000:30009"
       #ADDED_FLAGS: "-l puredb:/etc/pure-ftpd/pureftpd.pdb -E -j -R -P 127.0.0.1 -p 30000:30009 --tls=2 -c 5 -C 3"
     volumes:
-      - ./data:/home/ftpusers
+      - ./data:/s3
       #- ./passwd:/etc/pure-ftpd/passwd
       - ./certs/pure-ftpd.pem:/etc/ssl/private/pure-ftpd.pem:ro
       - ./init-users.sh:/init-users.sh
