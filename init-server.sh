@@ -9,11 +9,16 @@ echo "🔐 Generazione Diffie-Hellman params..."
 openssl dhparam -out certs/pure-ftpd-dhparams.pem 2048
 
 echo "🔐 Generazione certificato autofirmato..."
+source .env
+
+SUBJ="/C=${CERT_C}/ST=${CERT_ST}/L=${CERT_L}/O=${CERT_O}/OU=${CERT_OU}/CN=${CERT_CN}"
+
+echo "🔐 Generazione certificato autofirmato..."
 openssl req -x509 -nodes -newkey rsa:2048 -sha256 \
   -keyout certs/pure-ftpd.pem \
   -out certs/pure-ftpd.pem \
   -days 365 \
-  -subj "/C=IT/ST=Italy/L=City/O=MyOrg/OU=IT/CN=ftp.local"
+  -subj "$SUBJ"
 
 chown root:root certs/pure-ftpd.pem
 chmod 600 certs/pure-ftpd.pem
@@ -21,18 +26,10 @@ chmod 600 certs/pure-ftpd.pem
 echo "📁 Creazione directory passwd..."
 mkdir -p passwd
 
-echo "📝 Creazione file .env di esempio..."
+echo "📝 Creazione file .env..."
 cat <<EOF > .env
-# FTP users in formato: nomeutente:password
-FTP_USERS=bob:\${BOB_PASS}
-
-# Password definite qui sotto
-BOB_PASS=12345
+# Questo file viene generato automaticamente
+FTP_USERS=
 EOF
 
-echo "📁 Creazione directory utenti da FTP_USERS..."
-mkdir -p data/bob
-
-chmod 600 .env
-
-echo "✅ Inizializzazione completata con l'utente bob."
+echo "✅ Inizializzazione completata."
