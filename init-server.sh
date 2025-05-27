@@ -26,10 +26,9 @@ chmod 600 certs/pure-ftpd.pem
 echo "📁 Creazione directory passwd..."
 mkdir -p passwd
 
-echo "📝 Creazione file .env..."
-cat <<EOF > .env
-# Questo file viene generato automaticamente
-FTP_USERS=
-EOF
+#echo "📝 Creazione file .env..."
+#cat <<EOF > .env
+## Questo file viene generato automaticamente
+#FTP_USERS=
 
 echo "✅ Inizializzazione completata."
